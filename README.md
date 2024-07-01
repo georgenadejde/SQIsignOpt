@@ -1,30 +1,24 @@
-# Optimized implementation of SQISign
-## Accompanying implementation of the paper "New algorithms for the Deuring correspondence - Towards practical and secure SQISign signatures" (EUROCRYPT'23)
+# Implementation of SQISign with verification improvements
 
-This code implements an efficient variant of the isogeny-based signature scheme SQISign.
-For details see this [paper](https://eprint.iacr.org/2022/234).
+Accompanying paper "**Improving AprèsSQI's cost model for verification.**".
 
-(C) MIT license.
+## Overview
 
-## Dependencies
+This repository contains the following features regarding verification:
 
-The code depends on the latest stable version of the [PARI/GP
-library](http://pari.math.u-bordeaux.fr/), 2.11.4.
+- Non-square x-coordinates (LWXZ).
+- xMUL with adds (replace fp2_mul's with additions for points with small coordinates).
+- xMUL with conjugate trick (change a point's coordinates by multiplying with conjugate of Z).
 
-The code has an optional dependency on [GMP](https://gmplib.org/),
-which is also an optional dependency of PARI/GP and is typically
-installed along with it.
+## Benchmarking xMUL
 
-## Supported platforms
+We have also added global variables to benchmark indvidual xMUL's.
 
-The code compiles and runs on Linux and MacOS.
+## Supported primes
 
-It contains an implementation of the low-level arithmetic functions using handwritten assembly for the x86-64 platform,
-  starting from Broadwell architectures.
+The optimizations currently work only on the default prime  `p3923`.
 
-## Compile
-
-To compile, test and benchmark, run
+## Compile, test and benchmark
 
 ```
 make
@@ -32,30 +26,13 @@ make check
 make benchmark
 ```
 
-## Changing base field
+To only benchmark verification, do 
 
-There are two supported primes pXXXX: `p3923` and `p6983`.
-The default prime is `p3923`. 
-To switch prime do
+`make bench_verif && ./build/p3923/bench/verif verif.tsv`
 
-```
-make PRIME=p6983
-make check PRIME=p6983
-make benchmark PRIME=p6983
-```
+## Benchmark on multiple samples
 
-Object files are created in separate folder, there is no need to
-recompile from scratch with `make -B` when you change prime.
+To run the verification multiple times, we provide two scripts:
 
-
-## Running individual tests and benchmarks
-
-All tests are found in the folder `build/pXXXX/test/`, all benchmarks in the
-folder `build/pXXXX/bench/`. To run them type with the corresponding prime
-
-```
-./build/pXXXX/test/sqisign
-./build/pXXXX/bench/keygen
-./build/pXXXX/bench/sign
-./build/pXXXX/bench/verif
-```
+- `compile_bench.sh` -> compile and benchmark verification without xMUL difference
+- `bench_with_diff.sh` -> benchmark verification with xMUL difference
