@@ -11,6 +11,63 @@
 #include "uintbig.h"
 #include "poly.h"
 
+void xDBLADD_trick(proj *R, proj *S, proj const *P, proj const *Q, proj const *PQ, proj const *A24, int k)
+{
+    fp2 tmp0, tmp1, tmp2;        //requires precomputation of A24=(A+2C:4C)
+    proj P_copy = *P, Q_copy = *Q;
+    assert(!mont_iszero(PQ));
+
+    fp2_add3(&tmp0, &P->x, &P->z);
+    fp2_sub3(&tmp1, &P->x, &P->z);
+    fp2_sq2(&R->x, &tmp0);
+    fp2_sub3(&tmp2, &Q->x, &Q->z);
+    fp2_add3(&S->x, &Q->x, &Q->z);
+    fp2_mul2(&tmp0, &tmp2);
+    fp2_sq2(&R->z, &tmp1);
+    fp2_mul2(&tmp1, &S->x);
+    fp2_sub3(&tmp2, &R->x, &R->z);
+    fp2_mul2(&R->z, &A24->z);
+    fp2_mul2(&R->x, &R->z);
+    fp2_mul3(&S->x, &A24->x, &tmp2);
+    fp2_sub3(&S->z, &tmp0, &tmp1);
+    fp2_add2(&R->z, &S->x);
+    fp2_add3(&S->x, &tmp0, &tmp1);
+    fp2_mul2(&R->z, &tmp2);
+    fp2_sq1(&S->z);
+    fp2_sq1(&S->x);
+
+fp2_mul2(&S->z, &PQ->x);
+
+    // Uncomment below and comment the fp2_mul above
+    // for xMUL with adds
+    
+    // fp sum1;
+    // fp sum2;
+    // fp_set(&sum1, 0);
+    // fp_set(&sum2, 0);
+
+    // // S = c + di
+    // // Add 'k' times to sum2
+    // for(int i=1; i <= k; i++) {
+    //   // dk
+    //   fp_add2(&sum1, &S->z.im);
+    //   // ck
+    //   fp_add2(&sum2, &S->z.re);
+    // }
+    // // -dk
+    // fp_neg1(&sum1);
+
+    // fp_add2(&S->z.re, &sum1);
+    // fp_add2(&S->z.im, &sum2);
+
+// we can omit this since Z = 1 for LWXZ points.    
+// fp2_mul2(&S->x, &PQ->z);
+    // fp_mul3(&S->x.re, &S->x.re, &PQ->z.re);
+    // fp_mul3(&S->x.im, &S->x.im, &PQ->z.re);
+
+    if (mont_iszero(&Q_copy)) { *S = P_copy; } // doesn't work without this check
+}
+
 void xDBLADD(proj *R, proj *S, proj const *P, proj const *Q, proj const *PQ, proj const *A24)
 {
     fp2 tmp0, tmp1, tmp2;        //requires precomputation of A24=(A+2C:4C)
@@ -83,6 +140,29 @@ void xADD(proj *S, proj const *P, proj const *Q, proj const *PQ)
 /* not constant-time! */
 void xMUL(proj *Q, proj const *A, proj const *P, uintbig const *k)
 {
+
+    // Uncomment below for conjugate xMUL
+
+    // copy P
+    // proj newP = *P;
+
+    // // za^2
+    // fp_sq1(&newP.z.re);
+    // // zb^2
+    // fp_sq1(&newP.z.im);
+    // // za^2+zb^2
+    // fp_add3(&newP.z.re, &newP.z.re, &newP.z.im);
+
+    // proj ZNorm = *P;
+    // // get conj(P.Z)
+    // fp_neg1(&ZNorm.z.im);
+    // // P.X * conj(P.Z)
+    // fp2_mul3(&newP.x, &P->x, &ZNorm.z);
+    // // zb = 0
+    // fp_set(&newP.z.im, 0);
+
+    // P = &newP;
+
     proj R = *P;
     proj A24;
     if (mont_iszero(P)) {
@@ -117,6 +197,46 @@ void xMUL(proj *Q, proj const *A, proj const *P, uintbig const *k)
         //fp2_cswap(&Q->z, &R.z, bit);
 
     } while (i--);
+}
+
+// xMUL to use with LWXZ points
+void xMUL_trick(proj *Q, proj const *A, proj const *P, uintbig const *k, int im)
+{
+
+    proj R = *P;
+    proj A24;
+    if (mont_iszero(P)) {
+      *Q = *P;
+      return;
+    }
+
+    const proj Pcopy = *P; /* in case Q = P */
+
+    Q->x = fp2_1;
+    Q->z = fp2_0;
+
+    fp2_add3(&A24.x, &A->z, &A->z);    //precomputation of A24=(A+2C:4C)
+    fp2_add3(&A24.z, &A24.x, &A24.x);
+    fp2_add2(&A24.x, &A->x);
+
+    unsigned long i = BITS;
+    while (--i && !uintbig_bit(k, i));
+
+    do {
+        bool bit = uintbig_bit(k, i);
+
+        if (bit) { proj T = *Q; *Q = R; R = T; } /* not constant-time */
+        //fp2_cswap(&Q->x, &R.x, bit);
+        //fp2_cswap(&Q->z, &R.z, bit);
+
+        xDBLADD_trick(Q, &R, Q, &R, &Pcopy, &A24, im);
+
+        if (bit) { proj T = *Q; *Q = R; R = T; } /* not constant-time */
+        //fp2_cswap(&Q->x, &R.x, bit);
+        //fp2_cswap(&Q->z, &R.z, bit);
+
+    } while (i--);
+
 }
 
 // returns false if it is on the curve, true if it is on the twist

@@ -906,7 +906,12 @@ GEN dual_coeff(GEN coeff, isog_degree deg_plus, isog_degree deg_minus) {
     return gerepilecopy(ltop, coeff_dual);
 }
 
-
+static __inline__ uint64_t rdtsc(void)
+{
+    uint32_t hi, lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    return lo | (uint64_t) hi << 32;
+}
 
 // PRF to generate points
 static void hash(proj *P, int i) {
@@ -919,29 +924,157 @@ static void hash(proj *P, int i) {
 //compute deterministically a second point Q of order 2^two_tors_height
 //so that P,[2^(two_tors_height-f)] Q is a basis of the 2^f torsion.
 
-void deterministic_second_point(proj *Q,const proj* P, proj* A,long f) {
-  bool oncurve = class_mod_4 == 3;
-  long cnt = 1;
-  proj P2 = *P;
-  // normalize_proj(A);
-  // normalize_proj(P);
-  for (int i = 1; i < f; i++)
-    xDBL(&P2, A, &P2);
-  assert(!mont_iszero(&P2));
-  while (true) {
-    hash(Q, cnt++);
-    if (is_on_curve(Q, A) != oncurve)
-      continue;
-    // multiply by cofactor
-    xMUL(Q, A, Q, &p_even_cofactor);
-    // check it has maximal order
-    proj Q2 = *Q;
-    for (int i = 1; i < two_tors_height; i++)
-      xDBL(&Q2, A, &Q2);
-    if (!mont_iszero(&Q2) && !mont_equal(&Q2, &P2))
-      break;
-  }
+// void deterministic_second_point(proj *Q,const proj* P, proj* A,long f) {
+//   bool oncurve = class_mod_4 == 3;
+//   long cnt = 1;
+//   proj P2 = *P;
+//   // normalize_proj(A);
+//   // normalize_proj(P);
+//   for (int i = 1; i < f; i++)
+//     xDBL(&P2, A, &P2);
+//   assert(!mont_iszero(&P2));
+//   while (true) {
+//     hash(Q, cnt++);
+//     if (is_on_curve(Q, A) != oncurve)
+//       continue;
+    
+//     // Uncomment when benchmarking
+//     // c_start+= rdtsc();
+//     // multiply by cofactor
+//     xMUL(Q, A, Q, &p_even_cofactor);
 
+//     c_fin += rdtsc();
+    
+//     // uint64_t diff = c_fin - c_start;
+//     // printf("Difference: %" PRIu64 "\t \n", diff);
+
+//     // c_start = -rdtsc();    
+//     // c_fin = -rdtsc();
+
+//     // check it has maximal order
+//     proj Q2 = *Q;
+//     for (int i = 1; i < two_tors_height; i++)
+//       xDBL(&Q2, A, &Q2);
+//     if (!mont_iszero(&Q2) && !mont_equal(&Q2, &P2))
+//       break;
+//   }
+
+// }
+
+// static void hash_LWXZ_ApresSQI(proj *P, int k) {
+//   uintbig_set(&P->x.re.x, 1);
+//   uintbig_set(&P->x.im.x, k);
+//   uintbig_set(&P->z.re.x, 1);
+//   uintbig_set(&P->z.im.x, 0);
+// }
+
+// // // Generate list of points with non-square x-coordinates
+// void generate_LWXZ(proj LWXZ_list[], const long desired_len) {
+//     long cnt = 1;
+//     long current_len = 0;
+
+//     while(current_len < desired_len) {
+//         proj P;
+
+//         hash_LWXZ_ApresSQI(&P, cnt++);
+
+//         // Check if the x coordinate is not a square
+//         if (!fp2_issquare(&P.x))
+//         {
+//             // printf("k: %ld\n", cnt-1);
+//             LWXZ_list[current_len++] = P;
+//         }
+//     }
+// }
+
+
+void deterministic_second_point(proj *Q, const proj* P, proj* A, long f) {
+  bool oncurve = class_mod_4 == 3;
+
+//   const long LEN = 15;
+//   proj LWXZ_list[LEN];
+//   generate_LWXZ(LWXZ_list, LEN);
+
+// Generate list of Q's with non-square x-coordinates 
+
+proj   Q_9; fp_set(&Q_9.x.im, 9);   fp_set(&Q_9.x.re,  1); fp_set(&Q_9.z.re,  1); fp_set(&Q_9.z.im,  0);
+proj  Q_10; fp_set(&Q_10.x.im, 10); fp_set(&Q_10.x.re, 1); fp_set(&Q_10.z.re, 1); fp_set(&Q_10.z.im, 0);
+proj  Q_11; fp_set(&Q_11.x.im, 11); fp_set(&Q_11.x.re, 1); fp_set(&Q_11.z.re, 1); fp_set(&Q_11.z.im, 0);
+proj  Q_15; fp_set(&Q_15.x.im, 15); fp_set(&Q_15.x.re, 1); fp_set(&Q_15.z.re, 1); fp_set(&Q_15.z.im, 0);
+proj  Q_16; fp_set(&Q_16.x.im, 16); fp_set(&Q_16.x.re, 1); fp_set(&Q_16.z.re, 1); fp_set(&Q_16.z.im, 0);
+proj  Q_19; fp_set(&Q_19.x.im, 19); fp_set(&Q_19.x.re, 1); fp_set(&Q_19.z.re, 1); fp_set(&Q_19.z.im, 0);
+proj  Q_20; fp_set(&Q_20.x.im, 20); fp_set(&Q_20.x.re, 1); fp_set(&Q_20.z.re, 1); fp_set(&Q_20.z.im, 0);
+proj  Q_22; fp_set(&Q_22.x.im, 22); fp_set(&Q_22.x.re, 1); fp_set(&Q_22.z.re, 1); fp_set(&Q_22.z.im, 0);
+proj  Q_24; fp_set(&Q_24.x.im, 24); fp_set(&Q_24.x.re, 1); fp_set(&Q_24.z.re, 1); fp_set(&Q_24.z.im, 0);
+proj  Q_25; fp_set(&Q_25.x.im, 25); fp_set(&Q_25.x.re, 1); fp_set(&Q_25.z.re, 1); fp_set(&Q_25.z.im, 0);
+proj  Q_26; fp_set(&Q_26.x.im, 26); fp_set(&Q_26.x.re, 1); fp_set(&Q_26.z.re, 1); fp_set(&Q_26.z.im, 0);
+proj  Q_29; fp_set(&Q_29.x.im, 29); fp_set(&Q_29.x.re, 1); fp_set(&Q_29.z.re, 1); fp_set(&Q_29.z.im, 0);
+proj  Q_32; fp_set(&Q_32.x.im, 32); fp_set(&Q_32.x.re, 1); fp_set(&Q_32.z.re, 1); fp_set(&Q_32.z.im, 0);
+proj  Q_34; fp_set(&Q_34.x.im, 34); fp_set(&Q_34.x.re, 1); fp_set(&Q_34.z.re, 1); fp_set(&Q_34.z.im, 0);
+proj  Q_39; fp_set(&Q_39.x.im, 39); fp_set(&Q_39.x.re, 1); fp_set(&Q_39.z.re, 1); fp_set(&Q_39.z.im, 0);
+
+
+proj LWXZ_list[15] = {
+    Q_9,
+    Q_10,
+    Q_11,
+    Q_15,
+    Q_16,
+    Q_19,
+    Q_20,
+    Q_22,
+    Q_24,
+    Q_25,
+    Q_26,
+    Q_29,
+    Q_32,
+    Q_34,
+    Q_39
+};
+
+int k[15] = {
+    9,
+    10,
+    11,
+    15,
+    16,
+    19,
+    20,
+    22,
+    24,
+    25,
+    26,
+    29,
+    32,
+    34,
+    39
+};
+
+  long cur_len = 0;
+
+  while (true) {
+    // Choose Q 
+    *Q = LWXZ_list[cur_len++];
+    
+    // Check if it is on the curve
+    if (is_on_curve(Q, A) != oncurve) {
+      continue;
+    }
+    // Uncomment when benchmarking
+    // c_start+= rdtsc();
+
+    xMUL_trick(Q, A, Q, &p_even_cofactor, k[cur_len-1]);
+    // xMUL(Q, A, Q, &p_even_cofactor);
+
+    // c_fin += rdtsc();
+    
+    // uint64_t diff = c_fin - c_start;
+    // printf("Difference: %" PRIu64 "\t \n", diff);
+
+    // c_start = -rdtsc();    
+    // c_fin = -rdtsc();
+    break;
+  }
 }
 
 //alternative method to compute the ideal_to_isogeny algorithm

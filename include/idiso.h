@@ -7,6 +7,9 @@
 #include "two_walks.h"
 #include "curve.h"
 
+extern uint64_t c_start;
+extern uint64_t c_fin;
+
 typedef struct special_isogeny {
   // phi1 : source -> something isomorphic to middle
   // phi2 : middle -> target

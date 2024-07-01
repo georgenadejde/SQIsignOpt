@@ -68,6 +68,8 @@ int main(int argc, char **argv) {
       for (int i = 0; i < samples; i++) {
 	    clock_t t = -clock();
 	    uint64_t c = -rdtsc();
+      c_start = -rdtsc();
+      c_fin = -rdtsc();
         verif_new(&comp_sigma, &pk, &m);
 
 	    c += rdtsc();

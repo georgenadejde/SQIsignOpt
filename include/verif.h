@@ -1,6 +1,9 @@
 #include "two_walks.h"
 #include "isogenies.h"
 
+uint64_t c_start = 0;
+uint64_t c_fin = 0;
+
 // Compress a sequence of 2-walks of length len to a sequence of
 // integers (n bits + 4 hint bits).
 //

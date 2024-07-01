@@ -2,8 +2,6 @@
 #include "isomorphism.h"
 #include <assert.h>
 
-// TEST
-
 // Internal function: evaluates an isogeny proceeding from the largest
 // to the smallest degrees.
 //
